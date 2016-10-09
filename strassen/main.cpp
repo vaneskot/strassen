@@ -9,7 +9,8 @@
 #include <memory>
 #include <string>
 
-void MultiplyStrassen(double* a, double* b, int n, double* c);
+#include "strassen.h"
+
 void MultiplySimple(double* a, double* b, int n, double* res);
 
 template <typename ClosureType>
@@ -46,8 +47,9 @@ int main(int argc, char* argv[]) {
     std::cout << "Usage: " << argv[0] << " matrix_size" << std::endl;
     return 0;
   }
-  const int matrix_size = atoi(argv[1]);
-  const int full_array_size = matrix_size * matrix_size;
+  // problem: 578
+  const IndexType matrix_size = atoi(argv[1]);
+  const IndexType full_array_size = matrix_size * matrix_size;
   std::unique_ptr<double[]> a(new double[full_array_size]);
   std::unique_ptr<double[]> b(new double[full_array_size]);
 
@@ -69,8 +71,10 @@ int main(int argc, char* argv[]) {
 
   const double kEps = 1e-10;
 
-  for (size_t i = 0; i < full_array_size; ++i) {
-    assert(fabs(res[i] - res_strassen[i]) < kEps);
+  for (IndexType i = 0; i < full_array_size; ++i) {
+    const double left = res[i];
+    const double right = res_strassen[i];
+    assert(fabs(left - right) < kEps);
   }
   return 0;
 }
