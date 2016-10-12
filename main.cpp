@@ -5,6 +5,7 @@
 #include <ctime>
 
 #include <algorithm>
+#include <chrono>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -15,9 +16,12 @@ void MultiplySimple(double* a, double* b, int n, double* res);
 
 template <typename ClosureType>
 void TimeClosure(ClosureType closure, const std::string& label) {
-  double start_time = clock();
+  auto start_time = std::chrono::high_resolution_clock::now();
   closure();
-  std::cout << label << ": " << (clock() - start_time) / CLOCKS_PER_SEC << "\n";
+  auto end_time = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::duration<double>>(
+      end_time - start_time);
+  std::cout << label << ": " << duration.count() << "s\n";
 }
 
 template <typename MultFuncType>
@@ -44,37 +48,23 @@ void PrintMatrix(const double* m, int n, int max_elements) {
 
 int main(int argc, char* argv[]) {
   if (argc < 2) {
-    std::cout << "Usage: " << argv[0] << " matrix_size" << std::endl;
+    std::cout << "Usage: " << argv[0] << " matrix_sizes" << std::endl;
     return 0;
   }
-  // problem: 578
-  const IndexType matrix_size = atoi(argv[1]);
-  const IndexType full_array_size = matrix_size * matrix_size;
-  std::unique_ptr<double[]> a(new double[full_array_size]);
-  std::unique_ptr<double[]> b(new double[full_array_size]);
+  for (int i = 1; i < argc; ++i) {
+    const IndexType matrix_size = atoi(argv[i]);
+    const IndexType full_array_size = matrix_size * matrix_size;
+    std::unique_ptr<double[]> a(new double[full_array_size]);
+    std::unique_ptr<double[]> b(new double[full_array_size]);
 
-  FillVector(a.get(), full_array_size);
-  FillVector(b.get(), full_array_size);
+    FillVector(a.get(), full_array_size);
+    FillVector(b.get(), full_array_size);
 
-  std::unique_ptr<double[]> res(new double[full_array_size]);
-  memset(res.get(), 0, full_array_size * sizeof(double));
-  TimeMultiply(MultiplySimple, a.get(), b.get(), matrix_size, res.get(),
-               "MultiplySimple");
-  PrintMatrix(res.get(), matrix_size, 5);
-
-  std::unique_ptr<double[]> res_strassen(new double[full_array_size]);
-  memset(res_strassen.get(), 0, full_array_size * sizeof(double));
-  TimeMultiply(MultiplyStrassen, a.get(), b.get(), matrix_size,
-               res_strassen.get(), "MultiplyStrassen");
-
-  PrintMatrix(res_strassen.get(), matrix_size, 5);
-
-  const double kEps = 1e-10;
-
-  for (IndexType i = 0; i < full_array_size; ++i) {
-    const double left = res[i];
-    const double right = res_strassen[i];
-    assert(fabs(left - right) < kEps);
+    std::unique_ptr<double[]> res_strassen(new double[full_array_size]);
+    memset(res_strassen.get(), 0, full_array_size * sizeof(double));
+    TimeMultiply(MultiplyStrassen, a.get(), b.get(), matrix_size,
+                 res_strassen.get(), "MultiplyStrassen size = " +
+                                         std::to_string(matrix_size) + " ");
   }
   return 0;
 }
