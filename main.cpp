@@ -9,6 +9,7 @@
 #include <chrono>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <string>
 
 #include "strassen.h"
@@ -30,8 +31,10 @@ void TimeMultiply(MultFuncType mult_func, double *a, double *b, size_t n,
 }
 
 void FillVector(double* v, size_t n) {
+  std::uniform_real_distribution<double> (-10., 10);
+  std::default_random_engine re;
   for (size_t i = 0; i < n; ++i) {
-    v[i] = i;
+    v[i] = unif(re);
   }
 }
 
