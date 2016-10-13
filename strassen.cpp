@@ -1,5 +1,7 @@
 // Author: Ivan Kotenkov <koteniv1@fit.cvut.cz>
 
+#include <cstring>
+
 #include <iostream>
 #include <memory>
 

@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <cmath>
+#include <cstring>
 #include <ctime>
 
 #include <algorithm>
@@ -11,8 +12,6 @@
 #include <string>
 
 #include "strassen.h"
-
-void MultiplySimple(double* a, double* b, int n, double* res);
 
 template <typename ClosureType>
 void TimeClosure(ClosureType closure, const std::string& label) {
