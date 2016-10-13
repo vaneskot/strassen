@@ -1,6 +1,7 @@
 // Author: Ivan Kotenkov <koteniv1.fit.cvut.cz>
 
 #include <assert.h>
+#include <cstring>
 
 #include <iostream>
 #include <memory>
