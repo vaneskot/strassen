@@ -13,19 +13,6 @@ enum class SumType {
   DIFF
 };
 
-IndexType NextPowerOf2(IndexType n) {
-  n--;
-  n |= n >> 1;   // Divide by 2^k for consecutive doublings of k up to 32,
-  n |= n >> 2;   // and then or the results.
-  n |= n >> 4;
-  n |= n >> 8;
-  n |= n >> 16;
-  n++;           // The result is a number of 1 bits equal to the number
-                // of bits in the original number, plus 1. That's the
-                // next highest power of 2.
-  return n;
-}
-
 class PartialMatrix {
  public:
   PartialMatrix(double *data, IndexType full_size, IndexType i_start, IndexType j_start,
@@ -50,7 +37,7 @@ class PartialMatrix {
   PartialMatrix GetSubmatrix(IndexType i, IndexType j) const {
     assert(0 <= i && i <= 1);
     assert(0 <= j && j <= 1);
-    const IndexType block_size = NextPowerOf2(partial_size_) / 2;
+    const IndexType block_size = partial_size_ / 2 + partial_size_ % 2;
     return PartialMatrix(data_, full_size_, i_start_ + i * block_size,
                          j_start_ + j * block_size, block_size);
   }
@@ -114,7 +101,7 @@ void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
     return;
   }
 
-  const IndexType block_size = NextPowerOf2(partial_size) / 2;
+  const IndexType block_size = partial_size / 2 + partial_size % 2;
   const PartialMatrix a11 = left.GetSubmatrix(0, 0);
   const PartialMatrix a12 = left.GetSubmatrix(0, 1);
   const PartialMatrix a21 = left.GetSubmatrix(1, 0);

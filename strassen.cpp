@@ -10,19 +10,6 @@
 void PrintMatrix(const double* m, int n, int max_elements);
 void MultiplySimple(double* a, double* b, int n, double* res);
 
-IndexType NextPowerOf2(IndexType n) {
-  n--;
-  n |= n >> 1;   // Divide by 2^k for consecutive doublings of k up to 32,
-  n |= n >> 2;   // and then or the results.
-  n |= n >> 4;
-  n |= n >> 8;
-  n |= n >> 16;
-  n++;           // The result is a number of 1 bits equal to the number
-                // of bits in the original number, plus 1. That's the
-                // next highest power of 2.
-  return n;
-}
-
 void AddMatrix(double* a, double* b, IndexType n, double* res) {
   for (IndexType i = 0; i < n * n; ++i) {
     *(res++) = *(a++) + *(b++);
@@ -61,7 +48,7 @@ void MultiplyStrassen(double* a, double* b, IndexType n, double* res) {
     return;
   }
 
-  const IndexType block_size = NextPowerOf2(n) / 2;
+  const IndexType block_size = n / 2 + n % 2;
   static const IndexType kTmpBlocksCount = 19;
   std::unique_ptr<double[]> additional_memory(
       new double[block_size * block_size * kTmpBlocksCount]);
