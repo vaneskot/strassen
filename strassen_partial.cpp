@@ -132,29 +132,15 @@ void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
   const PartialMatrix b21 = right.GetSubmatrix(1, 0);
   const PartialMatrix b22 = right.GetSubmatrix(1, 1);
 
-  // FIXME(kotenkov): use res for tmp matrices ?
-  const IndexType tmp_size = block_size * block_size * 8;
+  const int kAdditionalBlocksCount = 3;
+  const IndexType tmp_size = block_size * block_size * kAdditionalBlocksCount;
   std::unique_ptr<RealType[]> tmp_data(new RealType[tmp_size]);
   memset(tmp_data.get(), 0, tmp_size * sizeof(RealType));
 
-  RealType* tmp_block[8];
-  for (IndexType i = 0; i < 8; ++i) {
+  RealType* tmp_block[kAdditionalBlocksCount];
+  for (IndexType i = 0; i < kAdditionalBlocksCount; ++i) {
     tmp_block[i] = tmp_data.get() + block_size * block_size * i;
   }
-  PartialMatrix m1(tmp_block[0], block_size, 0, 0, block_size, block_size,
-                   block_size);
-  PartialMatrix m2(tmp_block[1], block_size, 0, 0, block_size, block_size,
-                   block_size);
-  PartialMatrix m3(tmp_block[2], block_size, 0, 0, block_size, block_size,
-                   block_size);
-  PartialMatrix m4(tmp_block[3], block_size, 0, 0, block_size, block_size,
-                   block_size);
-  PartialMatrix m5(tmp_block[4], block_size, 0, 0, block_size, block_size,
-                   block_size);
-  PartialMatrix m6(tmp_block[5], block_size, 0, 0, block_size, block_size,
-                   block_size);
-  PartialMatrix m7(tmp_block[6], block_size, 0, 0, block_size, block_size,
-                   block_size);
 
   PartialMatrix c11 = res->GetSubmatrix(0, 0);
   PartialMatrix c12 = res->GetSubmatrix(0, 1);
@@ -163,48 +149,48 @@ void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
 
   // We have one full block that we can use as a temporary block, c11.
   // We need 2 blocks, so we create another here.
-  PartialMatrix tmp_matrix(tmp_block[7], block_size, 0, 0, block_size,
+  PartialMatrix tmp_matrix(tmp_block[0], block_size, 0, 0, block_size,
                            block_size, block_size);
+  PartialMatrix tmp_matrix1(tmp_block[1], block_size, 0, 0, block_size,
+                            block_size, block_size);
+  PartialMatrix m_matrix(tmp_block[2], block_size, 0, 0, block_size, block_size,
+                         block_size);
 
   // Compute |m1|..|m7| matrices.
 
-  MatrixSum(a11, a22, SumType::SUM, &c11);
-  MatrixSum(b11, b22, SumType::SUM, &tmp_matrix);
-  MultiplyStrassen(c11, tmp_matrix, &m1);
-
-  MatrixSum(a21, a22, SumType::SUM, &c11);
-  MultiplyStrassen(c11, b11, &m2);
-
-  MatrixSum(b12, b22, SumType::DIFF, &c11);
-  MultiplyStrassen(a11, c11, &m3);
-
-  MatrixSum(b21, b11, SumType::DIFF, &c11);
-  MultiplyStrassen(a22, c11, &m4);
-
-  MatrixSum(a11, a12, SumType::SUM, &c11);
-  MultiplyStrassen(c11, b22, &m5);
-
   MatrixSum(a21, a11, SumType::DIFF, &c11);
   MatrixSum(b11, b12, SumType::SUM, &tmp_matrix);
-  MultiplyStrassen(c11, tmp_matrix, &m6);
+  MultiplyStrassen(c11, tmp_matrix, &m_matrix); // m6
 
-  MatrixSum(a12, a22, SumType::DIFF, &c11);
-  MatrixSum(b21, b22, SumType::SUM, &tmp_matrix);
-  MultiplyStrassen(c11, tmp_matrix, &m7);
+  MatrixSum(b12, b22, SumType::DIFF, &c11);
+  MultiplyStrassen(a11, c11, &tmp_matrix); // m3
+  c12.SetMatrix(tmp_matrix);
+  MatrixSum(m_matrix, tmp_matrix, SumType::SUM, &c22);
 
-  // Compute |c11|..|c22| matrices.
+  MatrixSum(a21, a22, SumType::SUM, &c11);
+  MultiplyStrassen(c11, b11, &m_matrix); // m2
+  c21.SetMatrix(m_matrix);
+  MatrixSum(c22, m_matrix, SumType::DIFF, &c22);
 
-  MatrixSum(m1, m4, SumType::SUM, &c11);
-  MatrixSum(c11, m5, SumType::DIFF, &c11);
-  MatrixSum(c11, m7, SumType::SUM, &c11);
+  MatrixSum(a11, a22, SumType::SUM, &tmp_matrix);
+  MatrixSum(b11, b22, SumType::SUM, &tmp_matrix1);
+  MultiplyStrassen(tmp_matrix, tmp_matrix1, &c11); // m1
+  MatrixSum(c22, c11, SumType::SUM, &c22);
 
-  MatrixSum(m3, m5, SumType::SUM, &c12);
+  MatrixSum(a12, a22, SumType::DIFF, &tmp_matrix);
+  MatrixSum(b21, b22, SumType::SUM, &tmp_matrix1);
+  MultiplyStrassen(tmp_matrix, tmp_matrix1, &m_matrix); // m7
+  MatrixSum(c11, m_matrix, SumType::SUM, &c11);
 
-  MatrixSum(m2, m4, SumType::SUM, &c21);
+  MatrixSum(b21, b11, SumType::DIFF, &tmp_matrix);
+  MultiplyStrassen(a22, tmp_matrix, &m_matrix); // m4
+  MatrixSum(c11, m_matrix, SumType::SUM, &c11);
+  MatrixSum(c21, m_matrix, SumType::SUM, &c21);
 
-  MatrixSum(m1, m2, SumType::DIFF, &c22);
-  MatrixSum(c22, m3, SumType::SUM, &c22);
-  MatrixSum(c22, m6, SumType::SUM, &c22);
+  MatrixSum(a11, a12, SumType::SUM, &tmp_matrix);
+  MultiplyStrassen(tmp_matrix, b22, &m_matrix); // m5
+  MatrixSum(c11, m_matrix, SumType::DIFF, &c11);
+  MatrixSum(c12, m_matrix, SumType::SUM, &c12);
 }
 
 void MultiplyStrassen(RealType *a, RealType *b, IndexType n, RealType *c) {

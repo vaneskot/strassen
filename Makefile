@@ -10,7 +10,7 @@ STRASSEN_SOURCES = main.cpp strassen.cpp
 
 STRASSEN_PARTIAL_SOURCES = main.cpp strassen_partial.cpp
 
-TEST_SOURCES = test_main.cpp strassen.cpp simple.cpp
+TEST_SOURCES = test_main.cpp strassen_partial.cpp simple.cpp
 
 HEADERS = strassen.h
 
