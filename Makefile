@@ -4,11 +4,11 @@ CXXFLAGS = -std=c++11 -O3
 
 LDFLAGS = -lm
 
-BINARIES = test strassen strassen_fully_partial
+BINARIES = test strassen strassen_partial
 
 STRASSEN_SOURCES = main.cpp strassen.cpp
 
-STRASSEN_FULLY_PARTIAL_SOURCES = main.cpp strassen_fully_partial.cpp
+STRASSEN_PARTIAL_SOURCES = main.cpp strassen_partial.cpp
 
 TEST_SOURCES = test_main.cpp strassen.cpp simple.cpp
 
@@ -20,8 +20,8 @@ all: $(BINARIES)
 strassen: $(STRASSEN_SOURCES) $(HEADERS)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $(STRASSEN_SOURCES)
 
-strassen_fully_partial: $(STRASSEN_FULLY_PARTIAL_SOURCES) $(HEADERS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $(STRASSEN_FULLY_PARTIAL_SOURCES)
+strassen_partial: $(STRASSEN_PARTIAL_SOURCES) $(HEADERS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $(STRASSEN_PARTIAL_SOURCES)
 
 test: $(TEST_SOURCES) $(HEADERS)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $@ $(TEST_SOURCES)
