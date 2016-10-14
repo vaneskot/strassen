@@ -8,6 +8,10 @@
 
 #include "strassen.h"
 
+namespace {
+const int kAdditionalBlocksCount = 3;
+}  // namespace
+
 enum class SumType {
   SUM,
   DIFF
@@ -15,19 +19,19 @@ enum class SumType {
 
 class PartialMatrix {
  public:
-   PartialMatrix(RealType *data, IndexType full_size, IndexType i_start,
-                 IndexType j_start, IndexType i_border, IndexType j_border,
-                 IndexType partial_size)
-       : data_(data), full_size_(full_size), i_start_(i_start),
-         j_start_(j_start), i_border_(i_border), j_border_(j_border),
-         partial_size_(partial_size) {}
+  PartialMatrix(RealType *data, IndexType full_size, IndexType i_start,
+                IndexType j_start, IndexType i_border, IndexType j_border,
+                IndexType partial_size)
+      : data_(data), full_size_(full_size), i_start_(i_start),
+        j_start_(j_start), i_border_(i_border), j_border_(j_border),
+        partial_size_(partial_size) {}
 
-   RealType Get(IndexType i, IndexType j) const {
-     const IndexType actual_i = i + i_start_;
-     const IndexType actual_j = j + j_start_;
-     if (actual_i < i_border_ && actual_j < j_border_)
-       return data_[actual_i * full_size_ + actual_j];
-     return 0;
+  RealType Get(IndexType i, IndexType j) const {
+    const IndexType actual_i = i + i_start_;
+    const IndexType actual_j = j + j_start_;
+    if (actual_i < i_border_ && actual_j < j_border_)
+      return data_[actual_i * full_size_ + actual_j];
+    return 0;
   }
   void Set(IndexType i, IndexType j, RealType value) {
     const IndexType actual_i = i + i_start_;
@@ -73,7 +77,8 @@ class PartialMatrix {
   friend void MatrixSum(const PartialMatrix &left, const PartialMatrix &right,
                         SumType type, PartialMatrix *res);
   friend void MultiplyStrassen(const PartialMatrix &left,
-                               const PartialMatrix &right, PartialMatrix *res);
+                               const PartialMatrix &right, RealType *tmp_memory,
+                               PartialMatrix *res);
   friend void MultiplySimple(const PartialMatrix &left,
                              const PartialMatrix &right, PartialMatrix *res);
 
@@ -111,6 +116,7 @@ void MatrixSum(const PartialMatrix &left, const PartialMatrix &right,
 // C22 C22 C22 C21 C12
 
 void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
+                      RealType* tmp_memory,
                       PartialMatrix *res) {
   const IndexType partial_size = left.partial_size_;
   assert(partial_size == right.partial_size_ &&
@@ -132,15 +138,12 @@ void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
   const PartialMatrix b21 = right.GetSubmatrix(1, 0);
   const PartialMatrix b22 = right.GetSubmatrix(1, 1);
 
-  const int kAdditionalBlocksCount = 3;
-  const IndexType tmp_size = block_size * block_size * kAdditionalBlocksCount;
-  std::unique_ptr<RealType[]> tmp_data(new RealType[tmp_size]);
-  memset(tmp_data.get(), 0, tmp_size * sizeof(RealType));
-
   RealType* tmp_block[kAdditionalBlocksCount];
   for (IndexType i = 0; i < kAdditionalBlocksCount; ++i) {
-    tmp_block[i] = tmp_data.get() + block_size * block_size * i;
+    tmp_block[i] = tmp_memory + block_size * block_size * i;
   }
+  RealType *next_tmp_memory =
+      tmp_block[kAdditionalBlocksCount - 1] + block_size * block_size;
 
   PartialMatrix c11 = res->GetSubmatrix(0, 0);
   PartialMatrix c12 = res->GetSubmatrix(0, 1);
@@ -160,35 +163,35 @@ void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
 
   MatrixSum(a21, a11, SumType::DIFF, &c11);
   MatrixSum(b11, b12, SumType::SUM, &tmp_matrix);
-  MultiplyStrassen(c11, tmp_matrix, &m_matrix); // m6
+  MultiplyStrassen(c11, tmp_matrix, next_tmp_memory, &m_matrix); // m6
 
   MatrixSum(b12, b22, SumType::DIFF, &c11);
-  MultiplyStrassen(a11, c11, &tmp_matrix); // m3
+  MultiplyStrassen(a11, c11, next_tmp_memory, &tmp_matrix); // m3
   c12.SetMatrix(tmp_matrix);
   MatrixSum(m_matrix, tmp_matrix, SumType::SUM, &c22);
 
   MatrixSum(a21, a22, SumType::SUM, &c11);
-  MultiplyStrassen(c11, b11, &m_matrix); // m2
+  MultiplyStrassen(c11, b11, next_tmp_memory, &m_matrix); // m2
   c21.SetMatrix(m_matrix);
   MatrixSum(c22, m_matrix, SumType::DIFF, &c22);
 
   MatrixSum(a11, a22, SumType::SUM, &tmp_matrix);
   MatrixSum(b11, b22, SumType::SUM, &tmp_matrix1);
-  MultiplyStrassen(tmp_matrix, tmp_matrix1, &c11); // m1
+  MultiplyStrassen(tmp_matrix, tmp_matrix1, next_tmp_memory, &c11); // m1
   MatrixSum(c22, c11, SumType::SUM, &c22);
 
   MatrixSum(a12, a22, SumType::DIFF, &tmp_matrix);
   MatrixSum(b21, b22, SumType::SUM, &tmp_matrix1);
-  MultiplyStrassen(tmp_matrix, tmp_matrix1, &m_matrix); // m7
+  MultiplyStrassen(tmp_matrix, tmp_matrix1, next_tmp_memory, &m_matrix); // m7
   MatrixSum(c11, m_matrix, SumType::SUM, &c11);
 
   MatrixSum(b21, b11, SumType::DIFF, &tmp_matrix);
-  MultiplyStrassen(a22, tmp_matrix, &m_matrix); // m4
+  MultiplyStrassen(a22, tmp_matrix, next_tmp_memory, &m_matrix); // m4
   MatrixSum(c11, m_matrix, SumType::SUM, &c11);
   MatrixSum(c21, m_matrix, SumType::SUM, &c21);
 
   MatrixSum(a11, a12, SumType::SUM, &tmp_matrix);
-  MultiplyStrassen(tmp_matrix, b22, &m_matrix); // m5
+  MultiplyStrassen(tmp_matrix, b22, next_tmp_memory, &m_matrix); // m5
   MatrixSum(c11, m_matrix, SumType::DIFF, &c11);
   MatrixSum(c12, m_matrix, SumType::SUM, &c12);
 }
@@ -197,5 +200,13 @@ void MultiplyStrassen(RealType *a, RealType *b, IndexType n, RealType *c) {
   const PartialMatrix left(a, n, 0, 0, n, n, n);
   const PartialMatrix right(b, n, 0, 0, n, n, n);
   PartialMatrix res(c, n, 0, 0, n, n, n);
-  MultiplyStrassen(left, right, &res);
+  int depth = 0;
+  for (int i = n; i > 0; i >>= 1) {
+    ++depth;
+  }
+  const IndexType tmp_size =
+      (1 << (2 * depth)) * kAdditionalBlocksCount * sizeof(RealType);
+  std::unique_ptr<RealType[]> tmp_memory(new RealType[tmp_size]);
+  memset(tmp_memory.get(), 0, tmp_size);
+  MultiplyStrassen(left, right, tmp_memory.get(), &res);
 }
