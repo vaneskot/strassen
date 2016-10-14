@@ -4,6 +4,7 @@
 #define STRASSEN_H_
 
 using IndexType = unsigned;
-void MultiplyStrassen(double* a, double* b, IndexType n, double* c);
+using RealType = float;
+void MultiplyStrassen(RealType* a, RealType* b, IndexType n, RealType* c);
 
 #endif  // STRASSEN_H_

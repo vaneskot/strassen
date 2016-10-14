@@ -15,21 +15,21 @@ enum class SumType {
 
 class PartialMatrix {
  public:
-   PartialMatrix(double *data, IndexType full_size, IndexType i_start,
+   PartialMatrix(RealType *data, IndexType full_size, IndexType i_start,
                  IndexType j_start, IndexType i_border, IndexType j_border,
                  IndexType partial_size)
        : data_(data), full_size_(full_size), i_start_(i_start),
          j_start_(j_start), i_border_(i_border), j_border_(j_border),
          partial_size_(partial_size) {}
 
-   double Get(IndexType i, IndexType j) const {
+   RealType Get(IndexType i, IndexType j) const {
      const IndexType actual_i = i + i_start_;
      const IndexType actual_j = j + j_start_;
      if (actual_i < i_border_ && actual_j < j_border_)
        return data_[actual_i * full_size_ + actual_j];
      return 0;
   }
-  void Set(IndexType i, IndexType j, double value) {
+  void Set(IndexType i, IndexType j, RealType value) {
     const IndexType actual_i = i + i_start_;
     const IndexType actual_j = j + j_start_;
     if (actual_i < i_border_ && actual_j < j_border_)
@@ -77,7 +77,7 @@ class PartialMatrix {
   friend void MultiplySimple(const PartialMatrix &left,
                              const PartialMatrix &right, PartialMatrix *res);
 
-  double *data_;
+  RealType *data_;
   IndexType full_size_;
   IndexType i_start_;
   IndexType j_start_;
@@ -93,8 +93,8 @@ void MatrixSum(const PartialMatrix &left, const PartialMatrix &right,
          partial_size == res->partial_size_);
   for (IndexType i = 0; i < partial_size; ++i) {
     for (IndexType j = 0; j < partial_size; ++j) {
-      double l = left.Get(i, j);
-      double r = right.Get(i, j);
+      RealType l = left.Get(i, j);
+      RealType r = right.Get(i, j);
       res->Set(i, j, type == SumType::SUM ? l + r : l - r);
     }
   }
@@ -134,10 +134,10 @@ void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
 
   // FIXME(kotenkov): use res for tmp matrices ?
   const IndexType tmp_size = block_size * block_size * 8;
-  std::unique_ptr<double[]> tmp_data(new double[tmp_size]);
-  memset(tmp_data.get(), 0, tmp_size * sizeof(double));
+  std::unique_ptr<RealType[]> tmp_data(new RealType[tmp_size]);
+  memset(tmp_data.get(), 0, tmp_size * sizeof(RealType));
 
-  double* tmp_block[8];
+  RealType* tmp_block[8];
   for (IndexType i = 0; i < 8; ++i) {
     tmp_block[i] = tmp_data.get() + block_size * block_size * i;
   }
@@ -207,7 +207,7 @@ void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
   MatrixSum(c22, m6, SumType::SUM, &c22);
 }
 
-void MultiplyStrassen(double *a, double *b, IndexType n, double *c) {
+void MultiplyStrassen(RealType *a, RealType *b, IndexType n, RealType *c) {
   const PartialMatrix left(a, n, 0, 0, n, n, n);
   const PartialMatrix right(b, n, 0, 0, n, n, n);
   PartialMatrix res(c, n, 0, 0, n, n, n);

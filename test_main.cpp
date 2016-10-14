@@ -10,17 +10,17 @@
 
 #include "strassen.h"
 
-void MultiplySimple(double* a, double* b, int n, double* res);
+void MultiplySimple(RealType* a, RealType* b, int n, RealType* res);
 
-void FillVector(double* v, size_t n, unsigned seed) {
-  std::uniform_real_distribution<double> unif(-10., 10);
+void FillVector(RealType* v, size_t n, unsigned seed) {
+  std::uniform_real_distribution<RealType> unif(-10., 10);
   std::default_random_engine re(seed);
   for (size_t i = 0; i < n; ++i) {
     v[i] = unif(re);
   }
 }
 
-void PrintMatrix(const double* m, int n, int max_elements) {
+void PrintMatrix(const RealType* m, int n, int max_elements) {
   const int upper_bound = std::min(n, max_elements);
   for (int i = 0; i < upper_bound; ++i) {
     for (int j = 0; j < upper_bound; ++j) {
@@ -32,23 +32,23 @@ void PrintMatrix(const double* m, int n, int max_elements) {
 
 int main(int argc, char* argv[]) {
   const IndexType kSizes[] = {1, 2, 3, 8, 16, 17, 31, 32, 64, 65, 128};
-  const double kEps = 1e-10;
+  const RealType kEps = 1e-5;
 
   for (IndexType matrix_size : kSizes) {
     std::cout << "Size: " << matrix_size;
     const IndexType full_array_size = matrix_size * matrix_size;
-    std::unique_ptr<double[]> a(new double[full_array_size]);
-    std::unique_ptr<double[]> b(new double[full_array_size]);
+    std::unique_ptr<RealType[]> a(new RealType[full_array_size]);
+    std::unique_ptr<RealType[]> b(new RealType[full_array_size]);
 
     FillVector(a.get(), full_array_size, 1);
     FillVector(b.get(), full_array_size, 2);
 
-    std::unique_ptr<double[]> res(new double[full_array_size]);
-    memset(res.get(), 0, full_array_size * sizeof(double));
+    std::unique_ptr<RealType[]> res(new RealType[full_array_size]);
+    memset(res.get(), 0, full_array_size * sizeof(RealType));
     MultiplySimple(a.get(), b.get(), matrix_size, res.get());
 
-    std::unique_ptr<double[]> res_strassen(new double[full_array_size]);
-    memset(res_strassen.get(), 0, full_array_size * sizeof(double));
+    std::unique_ptr<RealType[]> res_strassen(new RealType[full_array_size]);
+    memset(res_strassen.get(), 0, full_array_size * sizeof(RealType));
     MultiplyStrassen(a.get(), b.get(), matrix_size, res_strassen.get());
 
     bool correct = true;
