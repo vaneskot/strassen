@@ -13,7 +13,7 @@
 void MultiplySimple(RealType* a, RealType* b, int n, RealType* res);
 
 void FillVector(RealType* v, size_t n, unsigned seed) {
-  std::uniform_real_distribution<RealType> unif(-10., 10);
+  std::uniform_real_distribution<RealType> unif(-1., 1);
   std::default_random_engine re(seed);
   for (size_t i = 0; i < n; ++i) {
     v[i] = unif(re);
@@ -32,7 +32,7 @@ void PrintMatrix(const RealType* m, int n, int max_elements) {
 
 int main(int argc, char* argv[]) {
   const IndexType kSizes[] = {1, 2, 3, 8, 16, 17, 31, 32, 64, 65, 128};
-  const RealType kEps = 1e-5;
+  const RealType kEps = 1e-2;
 
   for (IndexType matrix_size : kSizes) {
     std::cout << "Size: " << matrix_size;
