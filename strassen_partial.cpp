@@ -15,22 +15,24 @@ enum class SumType {
 
 class PartialMatrix {
  public:
-  PartialMatrix(double *data, IndexType full_size, IndexType i_start, IndexType j_start,
-                IndexType partial_size)
-      : data_(data), full_size_(full_size), i_start_(i_start),
-        j_start_(j_start), partial_size_(partial_size) {}
+   PartialMatrix(double *data, IndexType full_size, IndexType i_start,
+                 IndexType j_start, IndexType i_border, IndexType j_border,
+                 IndexType partial_size)
+       : data_(data), full_size_(full_size), i_start_(i_start),
+         j_start_(j_start), i_border_(i_border), j_border_(j_border),
+         partial_size_(partial_size) {}
 
-  double Get(IndexType i, IndexType j) const {
-    const IndexType actual_i = i + i_start_;
-    const IndexType actual_j = j + j_start_;
-    if (actual_i < full_size_ && actual_j < full_size_)
-      return data_[actual_i * full_size_ + actual_j];
-    return 0;
+   double Get(IndexType i, IndexType j) const {
+     const IndexType actual_i = i + i_start_;
+     const IndexType actual_j = j + j_start_;
+     if (actual_i < i_border_ && actual_j < j_border_)
+       return data_[actual_i * full_size_ + actual_j];
+     return 0;
   }
   void Set(IndexType i, IndexType j, double value) {
     const IndexType actual_i = i + i_start_;
     const IndexType actual_j = j + j_start_;
-    if (actual_i < full_size_ && actual_j < full_size_)
+    if (actual_i < i_border_ && actual_j < j_border_)
       data_[actual_i * full_size_ + actual_j] = value;
   }
 
@@ -38,8 +40,24 @@ class PartialMatrix {
     assert(0 <= i && i <= 1);
     assert(0 <= j && j <= 1);
     const IndexType block_size = partial_size_ / 2 + partial_size_ % 2;
-    return PartialMatrix(data_, full_size_, i_start_ + i * block_size,
-                         j_start_ + j * block_size, block_size);
+    const IndexType new_i_start = i_start_ + i * block_size;
+    IndexType new_i_border = new_i_start + block_size;
+    if (new_i_border > i_border_)
+      new_i_border = i_border_;
+    const IndexType new_j_start = j_start_ + j * block_size;
+    IndexType new_j_border = new_j_start + block_size;
+    if (new_j_border > j_border_)
+      new_j_border = j_border_;
+    return PartialMatrix(data_, full_size_, new_i_start, new_j_start,
+                         new_i_border, new_j_border, block_size);
+  }
+
+  void SetMatrix(const PartialMatrix& other) {
+    for (int i = 0; i < i_border_ - i_start_; ++i) {
+      for (int j = 0; j < j_border_ - j_start_; ++j) {
+        data_[(i_start_ + i) * full_size_ + j_start_ + j] = other.Get(i, j);
+      }
+    }
   }
 
   void Print() const {
@@ -63,6 +81,8 @@ class PartialMatrix {
   IndexType full_size_;
   IndexType i_start_;
   IndexType j_start_;
+  IndexType i_border_;
+  IndexType j_border_;
   IndexType partial_size_;
 };
 
@@ -121,13 +141,20 @@ void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
   for (IndexType i = 0; i < 8; ++i) {
     tmp_block[i] = tmp_data.get() + block_size * block_size * i;
   }
-  PartialMatrix m1(tmp_block[0], block_size, 0, 0, block_size);
-  PartialMatrix m2(tmp_block[1], block_size, 0, 0, block_size);
-  PartialMatrix m3(tmp_block[2], block_size, 0, 0, block_size);
-  PartialMatrix m4(tmp_block[3], block_size, 0, 0, block_size);
-  PartialMatrix m5(tmp_block[4], block_size, 0, 0, block_size);
-  PartialMatrix m6(tmp_block[5], block_size, 0, 0, block_size);
-  PartialMatrix m7(tmp_block[6], block_size, 0, 0, block_size);
+  PartialMatrix m1(tmp_block[0], block_size, 0, 0, block_size, block_size,
+                   block_size);
+  PartialMatrix m2(tmp_block[1], block_size, 0, 0, block_size, block_size,
+                   block_size);
+  PartialMatrix m3(tmp_block[2], block_size, 0, 0, block_size, block_size,
+                   block_size);
+  PartialMatrix m4(tmp_block[3], block_size, 0, 0, block_size, block_size,
+                   block_size);
+  PartialMatrix m5(tmp_block[4], block_size, 0, 0, block_size, block_size,
+                   block_size);
+  PartialMatrix m6(tmp_block[5], block_size, 0, 0, block_size, block_size,
+                   block_size);
+  PartialMatrix m7(tmp_block[6], block_size, 0, 0, block_size, block_size,
+                   block_size);
 
   PartialMatrix c11 = res->GetSubmatrix(0, 0);
   PartialMatrix c12 = res->GetSubmatrix(0, 1);
@@ -136,7 +163,8 @@ void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
 
   // We have one full block that we can use as a temporary block, c11.
   // We need 2 blocks, so we create another here.
-  PartialMatrix tmp_matrix(tmp_block[7], block_size, 0, 0, block_size);
+  PartialMatrix tmp_matrix(tmp_block[7], block_size, 0, 0, block_size,
+                           block_size, block_size);
 
   // Compute |m1|..|m7| matrices.
 
@@ -180,8 +208,8 @@ void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
 }
 
 void MultiplyStrassen(double *a, double *b, IndexType n, double *c) {
-  const PartialMatrix left(a, n, 0, 0, n);
-  const PartialMatrix right(b, n, 0, 0, n);
-  PartialMatrix res(c, n, 0, 0, n);
+  const PartialMatrix left(a, n, 0, 0, n, n, n);
+  const PartialMatrix right(b, n, 0, 0, n, n, n);
+  PartialMatrix res(c, n, 0, 0, n, n, n);
   MultiplyStrassen(left, right, &res);
 }
