@@ -200,12 +200,13 @@ void MultiplyStrassen(RealType *a, RealType *b, IndexType n, RealType *c) {
   const PartialMatrix left(a, n, 0, 0, n, n, n);
   const PartialMatrix right(b, n, 0, 0, n, n, n);
   PartialMatrix res(c, n, 0, 0, n, n, n);
-  int depth = 0;
-  for (int i = n; i > 0; i >>= 1) {
-    ++depth;
+  IndexType tmp_size = 0;
+  for (int i = n; i > 1;) {
+    i = i / 2 + i % 2;
+    tmp_size += i * i;
   }
-  const IndexType tmp_size =
-      (1 << (2 * depth)) * kAdditionalBlocksCount * sizeof(RealType);
+  std::cout << tmp_size * kAdditionalBlocksCount << std::endl;
+  tmp_size *=  kAdditionalBlocksCount * sizeof(RealType);
   std::unique_ptr<RealType[]> tmp_memory(new RealType[tmp_size]);
   memset(tmp_memory.get(), 0, tmp_size);
   MultiplyStrassen(left, right, tmp_memory.get(), &res);
