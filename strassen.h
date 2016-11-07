@@ -3,8 +3,8 @@
 #ifndef STRASSEN_H_
 #define STRASSEN_H_
 
-using IndexType = unsigned;
-using RealType = float;
+#include "utils.h"
+
 void MultiplyStrassen(RealType* a, RealType* b, IndexType n, RealType* c);
 
 #endif  // STRASSEN_H_

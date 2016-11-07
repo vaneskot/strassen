@@ -6,13 +6,15 @@ LDFLAGS = -lm
 
 BINARIES = test strassen strassen_partial
 
-STRASSEN_SOURCES = main.cpp strassen.cpp
+COMMON_SOURCES = utils.cpp
 
-STRASSEN_PARTIAL_SOURCES = main.cpp strassen_partial.cpp
+STRASSEN_SOURCES = main.cpp strassen.cpp $(COMMON_SOURCES)
 
-TEST_SOURCES = test_main.cpp strassen_partial.cpp simple.cpp
+STRASSEN_PARTIAL_SOURCES = main.cpp strassen_partial.cpp $(COMMON_SOURCES)
 
-HEADERS = strassen.h
+TEST_SOURCES = test_main.cpp strassen_partial.cpp simple.cpp $(COMMON_SOURCES)
+
+HEADERS = strassen.h utils.h
 
 .PHONY: all
 all: $(BINARIES)
