@@ -78,7 +78,8 @@ class PartialMatrix {
                         SumType type, PartialMatrix *res);
   friend void MultiplyStrassen(const PartialMatrix &left,
                                const PartialMatrix &right, RealType *tmp_memory,
-                               PartialMatrix *res);
+                               PartialMatrix *res,
+                               IndexType max_recursion_size);
   friend void MultiplySimple(const PartialMatrix &left,
                              const PartialMatrix &right, PartialMatrix *res);
 
@@ -90,6 +91,21 @@ class PartialMatrix {
   IndexType j_border_;
   IndexType partial_size_;
 };
+
+void MultiplySimple(const PartialMatrix &left, const PartialMatrix &right,
+                    PartialMatrix *res) {
+  const int partial_size = left.partial_size_;
+  assert(partial_size == right.partial_size_);
+  assert(partial_size == res->partial_size_);
+  for (int i = 0; i < partial_size; ++i) {
+    for (int j = 0; j < partial_size; ++j) {
+      res->Set(i, j, 0.);
+      for (int k = 0; k < partial_size; ++k) {
+        res->Set(i, j, res->Get(i, j) + left.Get(i, k) * right.Get(k, j));
+      }
+    }
+  }
+}
 
 void MatrixSum(const PartialMatrix &left, const PartialMatrix &right,
                SumType type, PartialMatrix *res) {
@@ -117,13 +133,14 @@ void MatrixSum(const PartialMatrix &left, const PartialMatrix &right,
 
 void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
                       RealType* tmp_memory,
-                      PartialMatrix *res) {
+                      PartialMatrix *res,
+                      IndexType max_recursion_size = 2) {
   const IndexType partial_size = left.partial_size_;
   assert(partial_size == right.partial_size_ &&
          partial_size == res->partial_size_);
 
-  if (partial_size == 1) {
-    res->Set(0, 0, left.Get(0, 0) * right.Get(0, 0));
+  if (partial_size <= max_recursion_size) {
+    MultiplySimple(left, right, res);
     return;
   }
 
@@ -163,35 +180,42 @@ void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
 
   MatrixSum(a21, a11, SumType::DIFF, &c11);
   MatrixSum(b11, b12, SumType::SUM, &tmp_matrix);
-  MultiplyStrassen(c11, tmp_matrix, next_tmp_memory, &m_matrix); // m6
+  MultiplyStrassen(c11, tmp_matrix, next_tmp_memory, &m_matrix,
+                   max_recursion_size); // m6
 
   MatrixSum(b12, b22, SumType::DIFF, &c11);
-  MultiplyStrassen(a11, c11, next_tmp_memory, &tmp_matrix); // m3
+  MultiplyStrassen(a11, c11, next_tmp_memory, &tmp_matrix,
+                   max_recursion_size); // m3
   c12.SetMatrix(tmp_matrix);
   MatrixSum(m_matrix, tmp_matrix, SumType::SUM, &c22);
 
   MatrixSum(a21, a22, SumType::SUM, &c11);
-  MultiplyStrassen(c11, b11, next_tmp_memory, &m_matrix); // m2
+  MultiplyStrassen(c11, b11, next_tmp_memory, &m_matrix,
+                   max_recursion_size); // m2
   c21.SetMatrix(m_matrix);
   MatrixSum(c22, m_matrix, SumType::DIFF, &c22);
 
   MatrixSum(a11, a22, SumType::SUM, &tmp_matrix);
   MatrixSum(b11, b22, SumType::SUM, &tmp_matrix1);
-  MultiplyStrassen(tmp_matrix, tmp_matrix1, next_tmp_memory, &c11); // m1
+  MultiplyStrassen(tmp_matrix, tmp_matrix1, next_tmp_memory, &c11,
+                   max_recursion_size); // m1
   MatrixSum(c22, c11, SumType::SUM, &c22);
 
   MatrixSum(a12, a22, SumType::DIFF, &tmp_matrix);
   MatrixSum(b21, b22, SumType::SUM, &tmp_matrix1);
-  MultiplyStrassen(tmp_matrix, tmp_matrix1, next_tmp_memory, &m_matrix); // m7
+  MultiplyStrassen(tmp_matrix, tmp_matrix1, next_tmp_memory, &m_matrix,
+                   max_recursion_size); // m7
   MatrixSum(c11, m_matrix, SumType::SUM, &c11);
 
   MatrixSum(b21, b11, SumType::DIFF, &tmp_matrix);
-  MultiplyStrassen(a22, tmp_matrix, next_tmp_memory, &m_matrix); // m4
+  MultiplyStrassen(a22, tmp_matrix, next_tmp_memory, &m_matrix,
+                   max_recursion_size); // m4
   MatrixSum(c11, m_matrix, SumType::SUM, &c11);
   MatrixSum(c21, m_matrix, SumType::SUM, &c21);
 
   MatrixSum(a11, a12, SumType::SUM, &tmp_matrix);
-  MultiplyStrassen(tmp_matrix, b22, next_tmp_memory, &m_matrix); // m5
+  MultiplyStrassen(tmp_matrix, b22, next_tmp_memory, &m_matrix,
+                   max_recursion_size); // m5
   MatrixSum(c11, m_matrix, SumType::DIFF, &c11);
   MatrixSum(c12, m_matrix, SumType::SUM, &c12);
 }
@@ -205,9 +229,24 @@ void MultiplyStrassen(RealType *a, RealType *b, IndexType n, RealType *c) {
     i = i / 2 + i % 2;
     tmp_size += i * i;
   }
-  std::cout << tmp_size * kAdditionalBlocksCount << std::endl;
   tmp_size *=  kAdditionalBlocksCount * sizeof(RealType);
   std::unique_ptr<RealType[]> tmp_memory(new RealType[tmp_size]);
   memset(tmp_memory.get(), 0, tmp_size);
   MultiplyStrassen(left, right, tmp_memory.get(), &res);
+}
+
+void MultiplyStrassenRecursionSize(RealType *a, RealType *b, IndexType n,
+                                   int max_recursion_size, RealType *c) {
+  const PartialMatrix left(a, n, 0, 0, n, n, n);
+  const PartialMatrix right(b, n, 0, 0, n, n, n);
+  PartialMatrix res(c, n, 0, 0, n, n, n);
+  IndexType tmp_size = 0;
+  for (int i = n; i > 1;) {
+    i = i / 2 + i % 2;
+    tmp_size += i * i;
+  }
+  tmp_size *=  kAdditionalBlocksCount * sizeof(RealType);
+  std::unique_ptr<RealType[]> tmp_memory(new RealType[tmp_size]);
+  memset(tmp_memory.get(), 0, tmp_size);
+  MultiplyStrassen(left, right, tmp_memory.get(), &res, max_recursion_size);
 }
