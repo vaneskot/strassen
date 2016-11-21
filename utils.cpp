@@ -9,7 +9,8 @@ void FillVector(RealType* v, IndexType n, unsigned seed) {
   std::uniform_real_distribution<RealType> unif(-1., 1.);
   std::default_random_engine re(seed);
   for (size_t i = 0; i < n; ++i) {
-    v[i] = unif(re);
+    // v[i] = unif(re);
+    v[i] = 1.;
   }
 }
 
