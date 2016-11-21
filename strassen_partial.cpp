@@ -26,6 +26,18 @@ class PartialMatrix {
         j_start_(j_start), i_border_(i_border), j_border_(j_border),
         partial_size_(partial_size) {}
 
+  RealType UnsafeGet(IndexType i, IndexType j) const {
+    const IndexType actual_i = i + i_start_;
+    const IndexType actual_j = j + j_start_;
+    return data_[actual_i * full_size_ + actual_j];
+    return 0;
+  }
+  void UnsafeSet(IndexType i, IndexType j, RealType value) {
+    const IndexType actual_i = i + i_start_;
+    const IndexType actual_j = j + j_start_;
+    data_[actual_i * full_size_ + actual_j] = value;
+  }
+
   RealType Get(IndexType i, IndexType j) const {
     const IndexType actual_i = i + i_start_;
     const IndexType actual_j = j + j_start_;
@@ -97,11 +109,14 @@ void MultiplySimple(const PartialMatrix &left, const PartialMatrix &right,
   const int partial_size = left.partial_size_;
   assert(partial_size == right.partial_size_);
   assert(partial_size == res->partial_size_);
-  for (int i = 0; i < partial_size; ++i) {
-    for (int j = 0; j < partial_size; ++j) {
-      res->Set(i, j, 0.);
-      for (int k = 0; k < partial_size; ++k) {
-        res->Set(i, j, res->Get(i, j) + left.Get(i, k) * right.Get(k, j));
+  const int max_i = std::min({left.i_border_, right.i_border_, res->i_border_});
+  const int max_j = std::min({left.j_border_, right.j_border_, res->j_border_});
+  const int max_k = std::min(max_i, max_j);
+  for (int i = 0; i < max_i; ++i) {
+    for (int j = 0; j < max_j; ++j) {
+      res->UnsafeSet(i, j, 0.);
+      for (int k = 0; k < max_k; ++k) {
+        res->UnsafeSet(i, j, res->Get(i, j) + left.Get(i, k) * right.Get(k, j));
       }
     }
   }
