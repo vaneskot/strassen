@@ -134,7 +134,7 @@ void MatrixSum(const PartialMatrix &left, const PartialMatrix &right,
 void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
                       RealType* tmp_memory,
                       PartialMatrix *res,
-                      IndexType max_recursion_size = 2) {
+                      IndexType max_recursion_size = 16) {
   const IndexType partial_size = left.partial_size_;
   assert(partial_size == right.partial_size_ &&
          partial_size == res->partial_size_);
