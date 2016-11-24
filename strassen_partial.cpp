@@ -136,16 +136,60 @@ void MultiplySimple(const PartialMatrix &left, const PartialMatrix &right,
   }
 }
 
-void MatrixSum(const PartialMatrix &left, const PartialMatrix &right,
-               SumType type, PartialMatrix *res) {
+void MatrixSum(const PartialMatrix& left, const PartialMatrix& right,
+               SumType type, PartialMatrix* res) {
   const IndexType partial_size = left.partial_size_;
   assert(partial_size == right.partial_size_ &&
          partial_size == res->partial_size_);
-  for (IndexType i = 0; i < partial_size; ++i) {
-    for (IndexType j = 0; j < partial_size; ++j) {
-      RealType l = left.Get(i, j);
-      RealType r = right.Get(i, j);
-      res->Set(i, j, type == SumType::SUM ? l + r : l - r);
+
+  const IndexType max_i_left = std::min(left.i_max_, res->i_max_);
+  const IndexType max_i_right = std::min(right.i_max_, res->i_max_);
+  const IndexType max_j_left = std::min(left.j_max_, res->j_max_);
+  const IndexType max_j_right = std::min(right.j_max_, res->j_max_);
+  const IndexType max_i_res = res->i_max_;
+  const IndexType max_j_res = res->j_max_;
+  const IndexType max_i = std::min(max_i_left, max_i_right);
+  const IndexType max_j = std::min(max_j_left, max_j_right);
+  const IndexType max_i_left_right = std::max(max_i_left, max_i_right);
+  const IndexType max_j_left_right = std::max(max_j_left, max_j_right);
+
+  for (int i = 0; i < max_i; ++i) {
+    for (int j = 0; j < max_j; ++j) {
+      const RealType l = left.UnsafeGet(i, j);
+      const RealType r = right.UnsafeGet(i, j);
+      res->UnsafeSet(i, j, type == SumType::SUM ? l + r : l - r);
+    }
+    for (int j = max_j; j < max_j_left; ++j) {
+      res->UnsafeSet(i, j, left.UnsafeGet(i, j));
+    }
+    for (int j = max_j; j < max_j_right; ++j) {
+      const RealType r = right.UnsafeGet(i, j);
+      res->UnsafeSet(i, j, type == SumType::SUM ? r : -r);
+    }
+    for (int j = max_j_left_right; j < max_j_res; ++j) {
+      res->UnsafeSet(i, j, 0.);
+    }
+  }
+  for (int i = max_i; i < max_i_left; ++i) {
+    for (int j = 0; j < max_j_left; ++j) {
+      res->UnsafeSet(i, j, left.UnsafeGet(i, j));
+    }
+    for (int j = max_j_left; j < max_j_res; ++j) {
+      res->UnsafeSet(i, j, 0.);
+    }
+  }
+  for (int i = max_i; i < max_i_right; ++i) {
+    for (int j = 0; j < max_j_right; ++j) {
+      const RealType r = right.UnsafeGet(i, j);
+      res->UnsafeSet(i, j, type == SumType::SUM ? r : -r);
+    }
+    for (int j = max_j_right; j < max_j_res; ++j) {
+      res->UnsafeSet(i, j, 0.);
+    }
+  }
+  for (int i = max_i_left_right; i < max_i_res; ++i) {
+    for (int j = 0; j < max_j_res; ++j) {
+      res->UnsafeSet(i, j, 0.);
     }
   }
 }
@@ -163,7 +207,7 @@ void MatrixSum(const PartialMatrix &left, const PartialMatrix &right,
 void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
                       RealType* tmp_memory,
                       PartialMatrix *res,
-                      IndexType max_recursion_size = 16) {
+                      IndexType max_recursion_size = 8) {
   const IndexType partial_size = left.partial_size_;
   assert(partial_size == right.partial_size_ &&
          partial_size == res->partial_size_);
