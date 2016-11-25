@@ -12,11 +12,6 @@ namespace {
 const int kAdditionalBlocksCount = 3;
 }  // namespace
 
-enum class SumType {
-  SUM,
-  DIFF
-};
-
 class PartialMatrix {
  public:
   PartialMatrix(RealType *data, IndexType full_size, IndexType i_start,
@@ -91,7 +86,9 @@ class PartialMatrix {
 
  private:
   friend void MatrixSum(const PartialMatrix &left, const PartialMatrix &right,
-                        SumType type, PartialMatrix *res);
+                        PartialMatrix *res);
+  friend void MatrixDiff(const PartialMatrix &left, const PartialMatrix &right,
+                         PartialMatrix *res);
   friend void MultiplyStrassen(const PartialMatrix &left,
                                const PartialMatrix &right, RealType *tmp_memory,
                                PartialMatrix *res,
@@ -136,8 +133,8 @@ void MultiplySimple(const PartialMatrix &left, const PartialMatrix &right,
   }
 }
 
-void MatrixSum(const PartialMatrix& left, const PartialMatrix& right,
-               SumType type, PartialMatrix* res) {
+void MatrixSum(const PartialMatrix &left, const PartialMatrix &right,
+               PartialMatrix *res) {
   const IndexType partial_size = left.partial_size_;
   assert(partial_size == right.partial_size_ &&
          partial_size == res->partial_size_);
@@ -155,16 +152,13 @@ void MatrixSum(const PartialMatrix& left, const PartialMatrix& right,
 
   for (int i = 0; i < max_i; ++i) {
     for (int j = 0; j < max_j; ++j) {
-      const RealType l = left.UnsafeGet(i, j);
-      const RealType r = right.UnsafeGet(i, j);
-      res->UnsafeSet(i, j, type == SumType::SUM ? l + r : l - r);
+      res->UnsafeSet(i, j, left.UnsafeGet(i, j) + right.UnsafeGet(i, j));
     }
     for (int j = max_j; j < max_j_left; ++j) {
       res->UnsafeSet(i, j, left.UnsafeGet(i, j));
     }
     for (int j = max_j; j < max_j_right; ++j) {
-      const RealType r = right.UnsafeGet(i, j);
-      res->UnsafeSet(i, j, type == SumType::SUM ? r : -r);
+      res->UnsafeSet(i, j, right.UnsafeGet(i, j));
     }
     for (int j = max_j_left_right; j < max_j_res; ++j) {
       res->UnsafeSet(i, j, 0.);
@@ -180,8 +174,61 @@ void MatrixSum(const PartialMatrix& left, const PartialMatrix& right,
   }
   for (int i = max_i; i < max_i_right; ++i) {
     for (int j = 0; j < max_j_right; ++j) {
-      const RealType r = right.UnsafeGet(i, j);
-      res->UnsafeSet(i, j, type == SumType::SUM ? r : -r);
+      res->UnsafeSet(i, j, right.UnsafeGet(i, j));
+    }
+    for (int j = max_j_right; j < max_j_res; ++j) {
+      res->UnsafeSet(i, j, 0.);
+    }
+  }
+  for (int i = max_i_left_right; i < max_i_res; ++i) {
+    for (int j = 0; j < max_j_res; ++j) {
+      res->UnsafeSet(i, j, 0.);
+    }
+  }
+}
+
+void MatrixDiff(const PartialMatrix &left, const PartialMatrix &right,
+                PartialMatrix *res) {
+  const IndexType partial_size = left.partial_size_;
+  assert(partial_size == right.partial_size_ &&
+         partial_size == res->partial_size_);
+
+  const IndexType max_i_left = std::min(left.i_max_, res->i_max_);
+  const IndexType max_i_right = std::min(right.i_max_, res->i_max_);
+  const IndexType max_j_left = std::min(left.j_max_, res->j_max_);
+  const IndexType max_j_right = std::min(right.j_max_, res->j_max_);
+  const IndexType max_i_res = res->i_max_;
+  const IndexType max_j_res = res->j_max_;
+  const IndexType max_i = std::min(max_i_left, max_i_right);
+  const IndexType max_j = std::min(max_j_left, max_j_right);
+  const IndexType max_i_left_right = std::max(max_i_left, max_i_right);
+  const IndexType max_j_left_right = std::max(max_j_left, max_j_right);
+
+  for (int i = 0; i < max_i; ++i) {
+    for (int j = 0; j < max_j; ++j) {
+      res->UnsafeSet(i, j, left.UnsafeGet(i, j) - right.UnsafeGet(i, j));
+    }
+    for (int j = max_j; j < max_j_left; ++j) {
+      res->UnsafeSet(i, j, left.UnsafeGet(i, j));
+    }
+    for (int j = max_j; j < max_j_right; ++j) {
+      res->UnsafeSet(i, j, -right.UnsafeGet(i, j));
+    }
+    for (int j = max_j_left_right; j < max_j_res; ++j) {
+      res->UnsafeSet(i, j, 0.);
+    }
+  }
+  for (int i = max_i; i < max_i_left; ++i) {
+    for (int j = 0; j < max_j_left; ++j) {
+      res->UnsafeSet(i, j, left.UnsafeGet(i, j));
+    }
+    for (int j = max_j_left; j < max_j_res; ++j) {
+      res->UnsafeSet(i, j, 0.);
+    }
+  }
+  for (int i = max_i; i < max_i_right; ++i) {
+    for (int j = 0; j < max_j_right; ++j) {
+      res->UnsafeSet(i, j, -right.UnsafeGet(i, j));
     }
     for (int j = max_j_right; j < max_j_res; ++j) {
       res->UnsafeSet(i, j, 0.);
@@ -251,46 +298,46 @@ void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
 
   // Compute |m1|..|m7| matrices.
 
-  MatrixSum(a21, a11, SumType::DIFF, &c11);
-  MatrixSum(b11, b12, SumType::SUM, &tmp_matrix);
+  MatrixDiff(a21, a11, &c11);
+  MatrixSum(b11, b12, &tmp_matrix);
   MultiplyStrassen(c11, tmp_matrix, next_tmp_memory, &m_matrix,
                    max_recursion_size); // m6
 
-  MatrixSum(b12, b22, SumType::DIFF, &c11);
+  MatrixDiff(b12, b22, &c11);
   MultiplyStrassen(a11, c11, next_tmp_memory, &tmp_matrix,
                    max_recursion_size); // m3
   c12.SetMatrix(tmp_matrix);
-  MatrixSum(m_matrix, tmp_matrix, SumType::SUM, &c22);
+  MatrixSum(m_matrix, tmp_matrix, &c22);
 
-  MatrixSum(a21, a22, SumType::SUM, &c11);
+  MatrixSum(a21, a22, &c11);
   MultiplyStrassen(c11, b11, next_tmp_memory, &m_matrix,
                    max_recursion_size); // m2
   c21.SetMatrix(m_matrix);
-  MatrixSum(c22, m_matrix, SumType::DIFF, &c22);
+  MatrixDiff(c22, m_matrix, &c22);
 
-  MatrixSum(a11, a22, SumType::SUM, &tmp_matrix);
-  MatrixSum(b11, b22, SumType::SUM, &tmp_matrix1);
+  MatrixSum(a11, a22, &tmp_matrix);
+  MatrixSum(b11, b22, &tmp_matrix1);
   MultiplyStrassen(tmp_matrix, tmp_matrix1, next_tmp_memory, &c11,
                    max_recursion_size); // m1
-  MatrixSum(c22, c11, SumType::SUM, &c22);
+  MatrixSum(c22, c11, &c22);
 
-  MatrixSum(a12, a22, SumType::DIFF, &tmp_matrix);
-  MatrixSum(b21, b22, SumType::SUM, &tmp_matrix1);
+  MatrixDiff(a12, a22, &tmp_matrix);
+  MatrixSum(b21, b22, &tmp_matrix1);
   MultiplyStrassen(tmp_matrix, tmp_matrix1, next_tmp_memory, &m_matrix,
                    max_recursion_size); // m7
-  MatrixSum(c11, m_matrix, SumType::SUM, &c11);
+  MatrixSum(c11, m_matrix, &c11);
 
-  MatrixSum(b21, b11, SumType::DIFF, &tmp_matrix);
+  MatrixDiff(b21, b11, &tmp_matrix);
   MultiplyStrassen(a22, tmp_matrix, next_tmp_memory, &m_matrix,
                    max_recursion_size); // m4
-  MatrixSum(c11, m_matrix, SumType::SUM, &c11);
-  MatrixSum(c21, m_matrix, SumType::SUM, &c21);
+  MatrixSum(c11, m_matrix, &c11);
+  MatrixSum(c21, m_matrix, &c21);
 
-  MatrixSum(a11, a12, SumType::SUM, &tmp_matrix);
+  MatrixSum(a11, a12, &tmp_matrix);
   MultiplyStrassen(tmp_matrix, b22, next_tmp_memory, &m_matrix,
                    max_recursion_size); // m5
-  MatrixSum(c11, m_matrix, SumType::DIFF, &c11);
-  MatrixSum(c12, m_matrix, SumType::SUM, &c12);
+  MatrixDiff(c11, m_matrix, &c11);
+  MatrixSum(c12, m_matrix, &c12);
 }
 
 void MultiplyStrassen(RealType *a, RealType *b, IndexType n, RealType *c) {
