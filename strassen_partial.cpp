@@ -75,6 +75,23 @@ class PartialMatrix {
     }
   }
 
+  void SetMatrix(const float* from) {
+    for (int i = 0; i < i_max_; ++i) {
+      for (int j = 0; j < j_max_; ++j) {
+        data_[(i_start_ + i) * full_size_ + j_start_ + j] =
+            from[i * partial_size_ + j];
+      }
+    }
+  }
+
+  void Copy(float* to) const {
+    for (int i = 0; i < partial_size_; ++i) {
+      for (int j = 0; j < partial_size_; ++j) {
+        *(to++) = Get(i, j);
+      }
+    }
+  }
+
   void Print() const {
     for (int i = 0; i < partial_size_; ++i) {
       for (int j = 0; j < partial_size_; ++j) {
@@ -107,28 +124,13 @@ class PartialMatrix {
   IndexType partial_size_;
 };
 
-void MultiplySimple(const PartialMatrix &left, const PartialMatrix &right,
-                    PartialMatrix *res) {
-  const IndexType partial_size = left.partial_size_;
-  assert(partial_size == right.partial_size_);
-  assert(partial_size == res->partial_size_);
-  const IndexType max_i = std::min(left.i_max_, res->i_max_);
-  const IndexType max_j = std::min(right.j_max_, res->j_max_);
-  const IndexType max_k = std::min(left.j_max_, right.j_max_);
-
-  for (int i = 0; i < max_i; ++i) {
-    for (int j = 0; j < max_j; ++j) {
-      res->UnsafeSet(i, j, 0.);
-      for (int k = 0; k < max_k; ++k) {
-        res->UnsafeSet(i, j, res->Get(i, j) + left.Get(i, k) * right.Get(k, j));
+void MultiplySimple(RealType* a, RealType* b, int n, RealType* res) {
+  memset(res, 0, n * n * sizeof(float));
+  for (int i = 0; i < n; ++i) {
+    for (int j = 0; j < n; ++j) {
+      for (int k = 0; k < n; ++k) {
+        res[i * n + j] += a[i * n + k] * b[k * n + j];
       }
-    }
-    for (int j = max_j; j < res->j_max_; ++j)
-      res->UnsafeSet(i, j, 0.);
-  }
-  for (int i = max_i; i < res->i_max_; ++i) {
-    for (int j = 0; j < res->j_max_; ++j) {
-      res->UnsafeSet(i, j, 0);
     }
   }
 }
@@ -260,7 +262,13 @@ void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
          partial_size == res->partial_size_);
 
   if (partial_size <= max_recursion_size) {
-    MultiplySimple(left, right, res);
+    float* tmp_left = tmp_memory;
+    float* tmp_right = tmp_memory + partial_size * partial_size;
+    float* tmp_res = tmp_right + partial_size * partial_size;
+    left.Copy(tmp_left);
+    right.Copy(tmp_right);
+    MultiplySimple(tmp_left, tmp_right, partial_size, tmp_res);
+    res->SetMatrix(tmp_res);
     return;
   }
 

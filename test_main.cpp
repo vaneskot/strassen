@@ -10,10 +10,10 @@
 
 #include "strassen.h"
 
-void MultiplySimple(RealType* a, RealType* b, int n, RealType* res);
+void MultiplyVerySimple(RealType* a, RealType* b, int n, RealType* res);
 
 int main(int argc, char* argv[]) {
-  const IndexType kSizes[] = {1, 2, 3, 8, 16, 17, 31, 32, 64, 65, 128};
+  const IndexType kSizes[] = {1, 2, 3, 4, 5, 6, 7, 8,  9, 10, 11, 16, 17, 31, 32, 64, 65, 128};
   const RealType kEps = 1e-2;
 
   for (IndexType matrix_size : kSizes) {
@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
 
     std::unique_ptr<RealType[]> res(new RealType[full_array_size]);
     memset(res.get(), 0, full_array_size * sizeof(RealType));
-    MultiplySimple(a.get(), b.get(), matrix_size, res.get());
+    MultiplyVerySimple(a.get(), b.get(), matrix_size, res.get());
 
     std::unique_ptr<RealType[]> res_strassen(new RealType[full_array_size]);
     memset(res_strassen.get(), 0, full_array_size * sizeof(RealType));
