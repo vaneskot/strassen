@@ -24,18 +24,6 @@ class PartialMatrix {
     j_max_ = j_start_ < j_border_ ? j_border_ - j_start_ : 0;
   }
 
-  RealType UnsafeGet(IndexType i, IndexType j) const {
-     const IndexType actual_i = i + i_start_;
-     const IndexType actual_j = j + j_start_;
-     return data_[actual_i * full_size_ + actual_j];
-  }
-
-  void UnsafeSet(IndexType i, IndexType j, RealType value) {
-    const IndexType actual_i = i + i_start_;
-    const IndexType actual_j = j + j_start_;
-    data_[actual_i * full_size_ + actual_j] = value;
-  }
-
   RealType Get(IndexType i, IndexType j) const {
     const IndexType actual_i = i + i_start_;
     const IndexType actual_j = j + j_start_;
@@ -153,44 +141,60 @@ void MatrixSum(const PartialMatrix &left, const PartialMatrix &right,
   const IndexType max_j_left_right = std::max(max_j_left, max_j_right);
 
   for (int i = 0; i < max_i; ++i) {
+    float* res_p =
+        res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
+    float* left_p =
+        left.data_ + (left.i_start_ + i) * left.full_size_ + left.j_start_;
+    float* right_p =
+        right.data_ + (right.i_start_ + i) * right.full_size_ + right.j_start_;
     for (int j = 0; j < max_j; ++j) {
-      res->UnsafeSet(i, j, left.UnsafeGet(i, j) + right.UnsafeGet(i, j));
+      res_p[j] = left_p[j] + right_p[j];
     }
     for (int j = max_j; j < max_j_left; ++j) {
-      res->UnsafeSet(i, j, left.UnsafeGet(i, j));
+      res_p[j] = left_p[j];
     }
     for (int j = max_j; j < max_j_right; ++j) {
-      res->UnsafeSet(i, j, right.UnsafeGet(i, j));
+      res_p[j] = right_p[j];
     }
     for (int j = max_j_left_right; j < max_j_res; ++j) {
-      res->UnsafeSet(i, j, 0.);
+      res_p[j] = 0.;
     }
   }
   for (int i = max_i; i < max_i_left; ++i) {
+    float* res_p =
+        res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
+    float* left_p =
+        left.data_ + (left.i_start_ + i) * left.full_size_ + left.j_start_;
     for (int j = 0; j < max_j_left; ++j) {
-      res->UnsafeSet(i, j, left.UnsafeGet(i, j));
+      res_p[j] = left_p[j];
     }
     for (int j = max_j_left; j < max_j_res; ++j) {
-      res->UnsafeSet(i, j, 0.);
+      res_p[j] = 0.;
     }
   }
   for (int i = max_i; i < max_i_right; ++i) {
+    float* res_p =
+        res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
+    float* right_p =
+        right.data_ + (right.i_start_ + i) * right.full_size_ + right.j_start_;
     for (int j = 0; j < max_j_right; ++j) {
-      res->UnsafeSet(i, j, right.UnsafeGet(i, j));
+      res_p[j] = right_p[j];
     }
     for (int j = max_j_right; j < max_j_res; ++j) {
-      res->UnsafeSet(i, j, 0.);
+      res_p[j] = 0.;
     }
   }
   for (int i = max_i_left_right; i < max_i_res; ++i) {
+    float* res_p =
+        res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
     for (int j = 0; j < max_j_res; ++j) {
-      res->UnsafeSet(i, j, 0.);
+      res_p[j] = 0.;
     }
   }
 }
 
 void MatrixDiff(const PartialMatrix &left, const PartialMatrix &right,
-                PartialMatrix *res) {
+               PartialMatrix *res) {
   const IndexType partial_size = left.partial_size_;
   assert(partial_size == right.partial_size_ &&
          partial_size == res->partial_size_);
@@ -207,38 +211,54 @@ void MatrixDiff(const PartialMatrix &left, const PartialMatrix &right,
   const IndexType max_j_left_right = std::max(max_j_left, max_j_right);
 
   for (int i = 0; i < max_i; ++i) {
+    float* res_p =
+        res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
+    float* left_p =
+        left.data_ + (left.i_start_ + i) * left.full_size_ + left.j_start_;
+    float* right_p =
+        right.data_ + (right.i_start_ + i) * right.full_size_ + right.j_start_;
     for (int j = 0; j < max_j; ++j) {
-      res->UnsafeSet(i, j, left.UnsafeGet(i, j) - right.UnsafeGet(i, j));
+      res_p[j] = left_p[j] - right_p[j];
     }
     for (int j = max_j; j < max_j_left; ++j) {
-      res->UnsafeSet(i, j, left.UnsafeGet(i, j));
+      res_p[j] = left_p[j];
     }
     for (int j = max_j; j < max_j_right; ++j) {
-      res->UnsafeSet(i, j, -right.UnsafeGet(i, j));
+      res_p[j] = -right_p[j];
     }
     for (int j = max_j_left_right; j < max_j_res; ++j) {
-      res->UnsafeSet(i, j, 0.);
+      res_p[j] = 0.;
     }
   }
   for (int i = max_i; i < max_i_left; ++i) {
+    float* res_p =
+        res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
+    float* left_p =
+        left.data_ + (left.i_start_ + i) * left.full_size_ + left.j_start_;
     for (int j = 0; j < max_j_left; ++j) {
-      res->UnsafeSet(i, j, left.UnsafeGet(i, j));
+      res_p[j] = left_p[j];
     }
     for (int j = max_j_left; j < max_j_res; ++j) {
-      res->UnsafeSet(i, j, 0.);
+      res_p[j] = 0.;
     }
   }
   for (int i = max_i; i < max_i_right; ++i) {
+    float* res_p =
+        res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
+    float* right_p =
+        right.data_ + (right.i_start_ + i) * right.full_size_ + right.j_start_;
     for (int j = 0; j < max_j_right; ++j) {
-      res->UnsafeSet(i, j, -right.UnsafeGet(i, j));
+      res_p[j] = -right_p[j];
     }
     for (int j = max_j_right; j < max_j_res; ++j) {
-      res->UnsafeSet(i, j, 0.);
+      res_p[j] = 0.;
     }
   }
   for (int i = max_i_left_right; i < max_i_res; ++i) {
+    float* res_p =
+        res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
     for (int j = 0; j < max_j_res; ++j) {
-      res->UnsafeSet(i, j, 0.);
+      res_p[j] = 0.;
     }
   }
 }
