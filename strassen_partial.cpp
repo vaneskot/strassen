@@ -62,9 +62,9 @@ class PartialMatrix {
     }
   }
 
-  void SetMatrix(const float* from) {
+  void SetMatrix(const float* __restrict__ from) {
     for (int i = 0; i < i_max_; ++i) {
-      float* data_p = data_ + (i_start_ + i) * full_size_ + j_start_;
+      float* __restrict__ data_p = data_ + (i_start_ + i) * full_size_ + j_start_;
       for (int j = 0; j < j_max_; ++j) {
         data_p[j] = from[j];
       }
@@ -124,11 +124,11 @@ class PartialMatrix {
   IndexType partial_size_;
 };
 
-void MultiplySimple(const RealType* a, const RealType* b, int n, RealType* res) {
+void MultiplySimple(const RealType* __restrict__ a, const RealType* __restrict__ b, int n, RealType* __restrict__ res) {
   memset(res, 0, n * n * sizeof(float));
   for (int i = 0; i < n; ++i) {
     for (int k = 0; k < n; ++k) {
-      const RealType* b_p = b + k * n;
+      const RealType* __restrict__ b_p = b + k * n;
       const RealType a_ik = a[k];
       for (int j = 0; j < n; ++j) {
         res[j] += a_ik * b[j];
@@ -157,11 +157,11 @@ void MatrixSum(const PartialMatrix &left, const PartialMatrix &right,
   const IndexType max_j_left_right = std::max(max_j_left, max_j_right);
 
   for (int i = 0; i < max_i; ++i) {
-    float* res_p =
+    float* __restrict__ res_p =
         res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
-    float* left_p =
+    const float* __restrict__ left_p =
         left.data_ + (left.i_start_ + i) * left.full_size_ + left.j_start_;
-    float* right_p =
+    const float* __restrict__ right_p =
         right.data_ + (right.i_start_ + i) * right.full_size_ + right.j_start_;
     for (int j = 0; j < max_j; ++j) {
       res_p[j] = left_p[j] + right_p[j];
@@ -177,9 +177,9 @@ void MatrixSum(const PartialMatrix &left, const PartialMatrix &right,
     }
   }
   for (int i = max_i; i < max_i_left; ++i) {
-    float* res_p =
+    float* __restrict__ res_p =
         res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
-    float* left_p =
+    const float* __restrict__ left_p =
         left.data_ + (left.i_start_ + i) * left.full_size_ + left.j_start_;
     for (int j = 0; j < max_j_left; ++j) {
       res_p[j] = left_p[j];
@@ -189,9 +189,9 @@ void MatrixSum(const PartialMatrix &left, const PartialMatrix &right,
     }
   }
   for (int i = max_i; i < max_i_right; ++i) {
-    float* res_p =
+    float* __restrict__ res_p =
         res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
-    float* right_p =
+    const float* __restrict__ right_p =
         right.data_ + (right.i_start_ + i) * right.full_size_ + right.j_start_;
     for (int j = 0; j < max_j_right; ++j) {
       res_p[j] = right_p[j];
@@ -201,7 +201,7 @@ void MatrixSum(const PartialMatrix &left, const PartialMatrix &right,
     }
   }
   for (int i = max_i_left_right; i < max_i_res; ++i) {
-    float* res_p =
+    float* __restrict__ res_p =
         res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
     for (int j = 0; j < max_j_res; ++j) {
       res_p[j] = 0.;
@@ -227,11 +227,11 @@ void MatrixDiff(const PartialMatrix &left, const PartialMatrix &right,
   const IndexType max_j_left_right = std::max(max_j_left, max_j_right);
 
   for (int i = 0; i < max_i; ++i) {
-    float* res_p =
+    float* __restrict__ res_p =
         res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
-    float* left_p =
+    const float* __restrict__ left_p =
         left.data_ + (left.i_start_ + i) * left.full_size_ + left.j_start_;
-    float* right_p =
+    const float* __restrict__ right_p =
         right.data_ + (right.i_start_ + i) * right.full_size_ + right.j_start_;
     for (int j = 0; j < max_j; ++j) {
       res_p[j] = left_p[j] - right_p[j];
@@ -247,9 +247,9 @@ void MatrixDiff(const PartialMatrix &left, const PartialMatrix &right,
     }
   }
   for (int i = max_i; i < max_i_left; ++i) {
-    float* res_p =
+    float* __restrict__ res_p =
         res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
-    float* left_p =
+    const float* __restrict__ left_p =
         left.data_ + (left.i_start_ + i) * left.full_size_ + left.j_start_;
     for (int j = 0; j < max_j_left; ++j) {
       res_p[j] = left_p[j];
@@ -259,9 +259,9 @@ void MatrixDiff(const PartialMatrix &left, const PartialMatrix &right,
     }
   }
   for (int i = max_i; i < max_i_right; ++i) {
-    float* res_p =
+    float* __restrict__ res_p =
         res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
-    float* right_p =
+    const float* __restrict__ right_p =
         right.data_ + (right.i_start_ + i) * right.full_size_ + right.j_start_;
     for (int j = 0; j < max_j_right; ++j) {
       res_p[j] = -right_p[j];
@@ -271,7 +271,7 @@ void MatrixDiff(const PartialMatrix &left, const PartialMatrix &right,
     }
   }
   for (int i = max_i_left_right; i < max_i_res; ++i) {
-    float* res_p =
+    float* __restrict__ res_p =
         res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
     for (int j = 0; j < max_j_res; ++j) {
       res_p[j] = 0.;
@@ -292,7 +292,7 @@ void MatrixDiff(const PartialMatrix &left, const PartialMatrix &right,
 void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
                       RealType* tmp_memory,
                       PartialMatrix *res,
-                      IndexType max_recursion_size = 8) {
+                      IndexType max_recursion_size = 32) {
   const IndexType partial_size = left.partial_size_;
   assert(partial_size == right.partial_size_ &&
          partial_size == res->partial_size_);

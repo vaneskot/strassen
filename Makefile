@@ -1,8 +1,12 @@
 CXX = g++
 
-CXXFLAGS = -std=c++11 -O3
+# CXXFLAGS = -std=c++11 -O3
+ARCH_FLAGS = -march=ivybridge -mtune=ivybridge
+FP_FLAGS = -ffast-math -mfpmath=sse
+VEC_FLAGS = -msse -msse2 -msse3 -msse4.1 -ftree-vectorize -fopt-info-vec
+CXXFLAGS = -std=c++11 -O3 $(ARCH_FLAGS) $(FP_FLAGS) $(VEC_FLAGS)
 
-LDFLAGS = -lm
+LDFLAGS = -lm -flto
 
 BINARIES = test strassen strassen_partial strassen_recursion_size
 
