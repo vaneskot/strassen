@@ -24,21 +24,6 @@ class PartialMatrix {
     j_max_ = j_start_ < j_border_ ? j_border_ - j_start_ : 0;
   }
 
-  RealType Get(IndexType i, IndexType j) const {
-    const IndexType actual_i = i + i_start_;
-    const IndexType actual_j = j + j_start_;
-    if (actual_i < i_border_ && actual_j < j_border_)
-      return data_[actual_i * full_size_ + actual_j];
-    return 0;
-  }
-
-  void Set(IndexType i, IndexType j, RealType value) {
-    const IndexType actual_i = i + i_start_;
-    const IndexType actual_j = j + j_start_;
-    if (actual_i < i_border_ && actual_j < j_border_)
-      data_[actual_i * full_size_ + actual_j] = value;
-  }
-
   PartialMatrix GetSubmatrix(IndexType i, IndexType j) const {
     assert(0 <= i && i <= 1);
     assert(0 <= j && j <= 1);
@@ -56,34 +41,61 @@ class PartialMatrix {
   }
 
   void SetMatrix(const PartialMatrix& other) {
-    for (int i = 0; i < i_max_; ++i) {
+    const IndexType max_i = std::min(i_max_, other.i_max_);
+    const IndexType max_j = std::min(j_max_, other.j_max_);
+    for (int i = 0; i < max_i; ++i) {
+      float* data_p = data_ + (i_start_ + i) * full_size_ + j_start_;
+      float *other_p = other.data_ + (other.i_start_ + i) * other.full_size_ +
+                       other.j_start_;
+      for (int j = 0; j < max_j; ++j) {
+        data_p[j] = other_p[j];
+      }
+      for (int j = max_j; j < j_max_; ++j) {
+        data_p[j] = 0.;
+      }
+    }
+    for (int i = max_i; i < i_max_; ++i) {
+      float* data_p = data_ + (i_start_ + i) * full_size_ + j_start_;
       for (int j = 0; j < j_max_; ++j) {
-        data_[(i_start_ + i) * full_size_ + j_start_ + j] = other.Get(i, j);
+        data_p[j] = 0.;
       }
     }
   }
 
   void SetMatrix(const float* from) {
     for (int i = 0; i < i_max_; ++i) {
+      float* data_p = data_ + (i_start_ + i) * full_size_ + j_start_;
       for (int j = 0; j < j_max_; ++j) {
-        data_[(i_start_ + i) * full_size_ + j_start_ + j] =
-            from[i * partial_size_ + j];
+        data_p[j] = from[j];
       }
+      from += partial_size_;
     }
   }
 
   void Copy(float* to) const {
-    for (int i = 0; i < partial_size_; ++i) {
+    for (int i = 0; i < i_max_; ++i) {
+      float* data_p = data_ + (i_start_ + i) * full_size_ + j_start_;
+      for (int j = 0; j < j_max_; ++j) {
+        to[j] = data_p[j];
+      }
+      for (int j = j_max_; j < partial_size_; ++j) {
+        to[j] = 0.;
+      }
+      to += partial_size_;
+    }
+
+    for (int i = i_max_; i < partial_size_; ++i) {
       for (int j = 0; j < partial_size_; ++j) {
-        *(to++) = Get(i, j);
+        *(to++) = 0.;
       }
     }
   }
 
   void Print() const {
-    for (int i = 0; i < partial_size_; ++i) {
-      for (int j = 0; j < partial_size_; ++j) {
-        std::cout << Get(i, j) << " ";
+    for (int i = 0; i < i_max_; ++i) {
+      float* data_p = data_ + (i_start_ + i) * full_size_ + j_start_;
+      for (int j = 0; j < j_max_; ++j) {
+        std::cout << data_p[j] << " ";
       }
       std::cout << std::endl;
     }
