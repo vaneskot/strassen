@@ -124,14 +124,18 @@ class PartialMatrix {
   IndexType partial_size_;
 };
 
-void MultiplySimple(RealType* a, RealType* b, int n, RealType* res) {
+void MultiplySimple(const RealType* a, const RealType* b, int n, RealType* res) {
   memset(res, 0, n * n * sizeof(float));
   for (int i = 0; i < n; ++i) {
-    for (int j = 0; j < n; ++j) {
-      for (int k = 0; k < n; ++k) {
-        res[i * n + j] += a[i * n + k] * b[k * n + j];
+    for (int k = 0; k < n; ++k) {
+      const RealType* b_p = b + k * n;
+      const RealType a_ik = a[k];
+      for (int j = 0; j < n; ++j) {
+        res[j] += a_ik * b[j];
       }
     }
+    res += n;
+    a += n;
   }
 }
 
