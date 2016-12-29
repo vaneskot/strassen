@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <memory>
+#include <omp.h>
 
 #include "strassen.h"
 
@@ -43,6 +44,7 @@ class PartialMatrix {
   void SetMatrix(const PartialMatrix& other) {
     const IndexType max_i = std::min(i_max_, other.i_max_);
     const IndexType max_j = std::min(j_max_, other.j_max_);
+#pragma omp parallel for
     for (int i = 0; i < max_i; ++i) {
       float* data_p = data_ + (i_start_ + i) * full_size_ + j_start_;
       float *other_p = other.data_ + (other.i_start_ + i) * other.full_size_ +
@@ -63,25 +65,27 @@ class PartialMatrix {
   }
 
   void SetMatrix(const float* __restrict__ from) {
+#pragma omp parallel for
     for (int i = 0; i < i_max_; ++i) {
       float* __restrict__ data_p = data_ + (i_start_ + i) * full_size_ + j_start_;
+      const float* __restrict__ from_p = from + i * partial_size_;
       for (int j = 0; j < j_max_; ++j) {
-        data_p[j] = from[j];
+        data_p[j] = from_p[j];
       }
-      from += partial_size_;
     }
   }
 
   void Copy(float* to) const {
+#pragma omp parallel for
     for (int i = 0; i < i_max_; ++i) {
-      float* data_p = data_ + (i_start_ + i) * full_size_ + j_start_;
+      const float* __restrict__ data_p = data_ + (i_start_ + i) * full_size_ + j_start_;
+      float* __restrict__ to_p = to + i * partial_size_;
       for (int j = 0; j < j_max_; ++j) {
-        to[j] = data_p[j];
+        to_p[j] = data_p[j];
       }
       for (int j = j_max_; j < partial_size_; ++j) {
-        to[j] = 0.;
+        to_p[j] = 0.;
       }
-      to += partial_size_;
     }
 
     for (int i = i_max_; i < partial_size_; ++i) {
@@ -126,16 +130,17 @@ class PartialMatrix {
 
 void MultiplySimple(const RealType* __restrict__ a, const RealType* __restrict__ b, int n, RealType* __restrict__ res) {
   memset(res, 0, n * n * sizeof(float));
+#pragma omp parallel for
   for (int i = 0; i < n; ++i) {
+    RealType* __restrict__ res_p = res + i * n;
+    const RealType* __restrict__ a_p = a + i * n;
     for (int k = 0; k < n; ++k) {
       const RealType* __restrict__ b_p = b + k * n;
-      const RealType a_ik = a[k];
+      const RealType a_ik = a_p[k];
       for (int j = 0; j < n; ++j) {
-        res[j] += a_ik * b[j];
+        res_p[j] += a_ik * b[j];
       }
     }
-    res += n;
-    a += n;
   }
 }
 
@@ -156,6 +161,7 @@ void MatrixSum(const PartialMatrix &left, const PartialMatrix &right,
   const IndexType max_i_left_right = std::max(max_i_left, max_i_right);
   const IndexType max_j_left_right = std::max(max_j_left, max_j_right);
 
+#pragma omp parallel for
   for (int i = 0; i < max_i; ++i) {
     float* __restrict__ res_p =
         res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
@@ -226,6 +232,7 @@ void MatrixDiff(const PartialMatrix &left, const PartialMatrix &right,
   const IndexType max_i_left_right = std::max(max_i_left, max_i_right);
   const IndexType max_j_left_right = std::max(max_j_left, max_j_right);
 
+#pragma omp parallel for
   for (int i = 0; i < max_i; ++i) {
     float* __restrict__ res_p =
         res->data_ + (res->i_start_ + i) * res->full_size_ + res->j_start_;
@@ -292,7 +299,7 @@ void MatrixDiff(const PartialMatrix &left, const PartialMatrix &right,
 void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
                       RealType* tmp_memory,
                       PartialMatrix *res,
-                      IndexType max_recursion_size = 32) {
+                      IndexType max_recursion_size = 1024) {
   const IndexType partial_size = left.partial_size_;
   assert(partial_size == right.partial_size_ &&
          partial_size == res->partial_size_);
@@ -401,6 +408,7 @@ void MultiplyStrassen(RealType *a, RealType *b, IndexType n, RealType *c) {
 
 void MultiplyStrassenRecursionSize(RealType *a, RealType *b, IndexType n,
                                    int max_recursion_size, RealType *c) {
+  omp_set_num_threads(24);
   const PartialMatrix left(a, n, 0, 0, n, n, n);
   const PartialMatrix right(b, n, 0, 0, n, n, n);
   PartialMatrix res(c, n, 0, 0, n, n, n);

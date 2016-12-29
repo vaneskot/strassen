@@ -13,7 +13,7 @@
 void MultiplyVerySimple(RealType* a, RealType* b, int n, RealType* res);
 
 int main(int argc, char* argv[]) {
-  const IndexType kSizes[] = {1, 2, 3, 4, 5, 6, 7, 8,  9, 10, 11, 16, 17, 31, 32, 64, 65, 128};
+  const IndexType kSizes[] = {1, 2, 3, 4, 5, 6, 7, 8,  9, 10, 11, 16, 17, 31, 32, 64, 65, 128, 2048};
   const RealType kEps = 1e-2;
 
   for (IndexType matrix_size : kSizes) {
@@ -52,10 +52,10 @@ int main(int argc, char* argv[]) {
       PrintMatrix(b.get(), matrix_size, 5);
 
       std::cout << "Res simple" << std::endl;
-      PrintMatrix(res.get(), matrix_size, 5);
+      PrintMatrix(res.get(), matrix_size, 10);
 
       std::cout << "Res strassen" << std::endl;
-      PrintMatrix(res_strassen.get(), matrix_size, 5);
+      PrintMatrix(res_strassen.get(), matrix_size, 10);
       assert(false);
     }
     std::cout << " -- OK" << std::endl;

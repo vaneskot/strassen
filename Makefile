@@ -4,8 +4,8 @@ CXX = g++
 ARCH_FLAGS = -march=ivybridge -mtune=ivybridge
 # ARCH_FLAGS = -march=native -mtune=native
 FP_FLAGS = -ffast-math -mfpmath=sse
-VEC_FLAGS = -msse -msse2 -msse3 -msse4.1 -ftree-vectorize -fopt-info-vec
-CXXFLAGS = -std=c++11 -O3 $(ARCH_FLAGS) $(FP_FLAGS) $(VEC_FLAGS) -funroll-loops
+VEC_FLAGS = -msse -msse2 -msse3 -msse4.1 -ftree-vectorize
+CXXFLAGS = -std=c++11 -O3 $(ARCH_FLAGS) $(FP_FLAGS) $(VEC_FLAGS) -funroll-loops -fopenmp
 
 LDFLAGS = -lm -flto
 
