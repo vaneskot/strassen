@@ -114,6 +114,10 @@ class PartialMatrix {
                                const PartialMatrix &right, RealType *tmp_memory,
                                PartialMatrix *res,
                                IndexType max_recursion_size);
+  friend void MultiplyStrassenTasks(
+                      const PartialMatrix &left, const PartialMatrix &right,
+                      PartialMatrix *res,
+                      IndexType max_recursion_size);
   friend void MultiplySimple(const PartialMatrix &left,
                              const PartialMatrix &right, PartialMatrix *res);
 
@@ -299,7 +303,7 @@ void MatrixDiff(const PartialMatrix &left, const PartialMatrix &right,
 void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
                       RealType* tmp_memory,
                       PartialMatrix *res,
-                      IndexType max_recursion_size = 1024) {
+                      IndexType max_recursion_size = 2048) {
   const IndexType partial_size = left.partial_size_;
   assert(partial_size == right.partial_size_ &&
          partial_size == res->partial_size_);
@@ -391,19 +395,161 @@ void MultiplyStrassen(const PartialMatrix &left, const PartialMatrix &right,
   MatrixSum(c12, m_matrix, &c12);
 }
 
+void MultiplyStrassenTasks(
+                      const PartialMatrix &left, const PartialMatrix &right,
+                      PartialMatrix *res,
+                      IndexType max_recursion_size = 1024) {
+  const IndexType partial_size = left.partial_size_;
+  assert(partial_size == right.partial_size_ &&
+         partial_size == res->partial_size_);
+
+  if (partial_size <= max_recursion_size) {
+    const std::unique_ptr<RealType> tmp_memory(new RealType[3 * partial_size * partial_size]);
+    RealType* tmp_left = tmp_memory.get();
+    RealType* tmp_right = tmp_memory.get() + partial_size * partial_size;
+    RealType* tmp_res = tmp_right + partial_size * partial_size;
+    left.Copy(tmp_left);
+    right.Copy(tmp_right);
+    MultiplySimple(tmp_left, tmp_right, partial_size, tmp_res);
+    res->SetMatrix(tmp_res);
+    return;
+  }
+
+  const IndexType block_size = partial_size / 2 + partial_size % 2;
+  const PartialMatrix a11 = left.GetSubmatrix(0, 0);
+  const PartialMatrix a12 = left.GetSubmatrix(0, 1);
+  const PartialMatrix a21 = left.GetSubmatrix(1, 0);
+  const PartialMatrix a22 = left.GetSubmatrix(1, 1);
+
+  const PartialMatrix b11 = right.GetSubmatrix(0, 0);
+  const PartialMatrix b12 = right.GetSubmatrix(0, 1);
+  const PartialMatrix b21 = right.GetSubmatrix(1, 0);
+  const PartialMatrix b22 = right.GetSubmatrix(1, 1);
+
+  PartialMatrix c11 = res->GetSubmatrix(0, 0);
+  PartialMatrix c12 = res->GetSubmatrix(0, 1);
+  PartialMatrix c21 = res->GetSubmatrix(1, 0);
+  PartialMatrix c22 = res->GetSubmatrix(1, 1);
+
+  const int kTaskBlockCount = 16;
+  const std::unique_ptr<RealType> tmp_memory(new RealType[16 * block_size * block_size]);
+  RealType* tmp_block[kTaskBlockCount];
+  for (IndexType i = 0; i < kTaskBlockCount; ++i) {
+    tmp_block[i] = tmp_memory.get() + block_size * block_size * i;
+  }
+
+  PartialMatrix m1(tmp_block[0], block_size, 0, 0, block_size, block_size, block_size);
+  PartialMatrix m2(tmp_block[1], block_size, 0, 0, block_size, block_size, block_size);
+  PartialMatrix m3(tmp_block[2], block_size, 0, 0, block_size, block_size, block_size);
+  PartialMatrix m4(tmp_block[3], block_size, 0, 0, block_size, block_size, block_size);
+  PartialMatrix m5(tmp_block[4], block_size, 0, 0, block_size, block_size, block_size);
+  PartialMatrix m6(tmp_block[5], block_size, 0, 0, block_size, block_size, block_size);
+  PartialMatrix m7(tmp_block[6], block_size, 0, 0, block_size, block_size, block_size);
+  // We have one full block that we can use as a temporary block, c11.
+  PartialMatrix tmp_matrix0(tmp_block[7], block_size, 0, 0, block_size, block_size, block_size);
+  PartialMatrix tmp_matrix1(tmp_block[8], block_size, 0, 0, block_size, block_size, block_size);
+  PartialMatrix tmp_matrix2(tmp_block[9], block_size, 0, 0, block_size, block_size, block_size);
+  PartialMatrix tmp_matrix3(tmp_block[10], block_size, 0, 0, block_size, block_size, block_size);
+  PartialMatrix tmp_matrix4(tmp_block[11], block_size, 0, 0, block_size, block_size, block_size);
+  PartialMatrix tmp_matrix5(tmp_block[12], block_size, 0, 0, block_size, block_size, block_size);
+  PartialMatrix tmp_matrix6(tmp_block[13], block_size, 0, 0, block_size, block_size, block_size);
+  PartialMatrix tmp_matrix7(tmp_block[14], block_size, 0, 0, block_size, block_size, block_size);
+  PartialMatrix tmp_matrix8(tmp_block[15], block_size, 0, 0, block_size, block_size, block_size);
+
+  // Compute |m1|..|m7| matrices.
+
+#pragma omp task
+  {
+    MatrixSum(a11, a22, &tmp_matrix0);
+    MatrixSum(b11, b22, &tmp_matrix1);
+    MultiplyStrassenTasks(tmp_matrix0, tmp_matrix1, &m1, max_recursion_size); // m1
+  }
+
+#pragma omp task
+  {
+    MatrixSum(a21, a22, &c11);
+    MultiplyStrassenTasks(c11, b11, &m2, max_recursion_size); // m2
+  }
+
+#pragma omp task
+  {
+    MatrixDiff(b12, b22, &tmp_matrix2);
+    MultiplyStrassenTasks(a11, tmp_matrix2, &m3, max_recursion_size); // m3
+  }
+
+#pragma omp task
+  {
+    MatrixDiff(b21, b11, &tmp_matrix3);
+    MultiplyStrassenTasks(a22, tmp_matrix3, &m4, max_recursion_size); // m4
+  }
+
+#pragma omp task
+  {
+    MatrixSum(a11, a12, &tmp_matrix4);
+    MultiplyStrassenTasks(tmp_matrix4, b22, &m5, max_recursion_size); // m5
+  }
+
+#pragma omp task
+  {
+    MatrixDiff(a21, a11, &tmp_matrix5);
+    MatrixSum(b11, b12, &tmp_matrix6);
+    MultiplyStrassenTasks(tmp_matrix5, tmp_matrix6, &m6, max_recursion_size); // m6
+  }
+
+#pragma omp task
+  {
+    MatrixDiff(a12, a22, &tmp_matrix7);
+    MatrixSum(b21, b22, &tmp_matrix8);
+    MultiplyStrassenTasks(tmp_matrix7, tmp_matrix8, &m7, max_recursion_size); // m7
+  }
+
+#pragma omp taskwait
+
+#pragma omp task
+  {
+    MatrixSum(m1, m4, &tmp_matrix0);
+    MatrixDiff(m7, m2, &tmp_matrix1);
+    MatrixSum(tmp_matrix0, tmp_matrix1, &c11);
+  }
+
+#pragma omp task
+  MatrixSum(m3, m5, &c12);
+
+#pragma omp task
+  MatrixSum(m2, m4, &c21);
+
+#pragma omp task
+  {
+    MatrixDiff(m1, m2, &tmp_matrix2);
+    MatrixSum(m3, m6, &tmp_matrix3);
+    MatrixSum(tmp_matrix2, tmp_matrix3, &c22);
+  }
+
+#pragma omp taskwait
+}
+
+// void MultiplyStrassen(RealType *a, RealType *b, IndexType n, RealType *c) {
+//   const PartialMatrix left(a, n, 0, 0, n, n, n);
+//   const PartialMatrix right(b, n, 0, 0, n, n, n);
+//   PartialMatrix res(c, n, 0, 0, n, n, n);
+//   IndexType tmp_size = 0;
+//   for (int i = n; i > 1;) {
+//     i = i / 2 + i % 2;
+//     tmp_size += i * i;
+//   }
+//   tmp_size *=  kAdditionalBlocksCount * sizeof(RealType);
+//   std::unique_ptr<RealType[]> tmp_memory(new RealType[tmp_size]);
+//   memset(tmp_memory.get(), 0, tmp_size);
+//   MultiplyStrassen(left, right, tmp_memory.get(), &res);
+// }
+
 void MultiplyStrassen(RealType *a, RealType *b, IndexType n, RealType *c) {
   const PartialMatrix left(a, n, 0, 0, n, n, n);
   const PartialMatrix right(b, n, 0, 0, n, n, n);
   PartialMatrix res(c, n, 0, 0, n, n, n);
-  IndexType tmp_size = 0;
-  for (int i = n; i > 1;) {
-    i = i / 2 + i % 2;
-    tmp_size += i * i;
-  }
-  tmp_size *=  kAdditionalBlocksCount * sizeof(RealType);
-  std::unique_ptr<RealType[]> tmp_memory(new RealType[tmp_size]);
-  memset(tmp_memory.get(), 0, tmp_size);
-  MultiplyStrassen(left, right, tmp_memory.get(), &res);
+#pragma omp parallel
+#pragma omp single nowait
+  MultiplyStrassenTasks(left, right, &res);
 }
 
 void MultiplyStrassenRecursionSize(RealType *a, RealType *b, IndexType n,
